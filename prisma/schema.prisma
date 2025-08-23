@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  username   String   @unique
+  password   String
+  role       String   @default("user")
+  createdAt  DateTime @default(now())
+
+  openedCashRegisters DailyCashRegister[] @relation("OpenedBy")
+  closedCashRegisters DailyCashRegister[] @relation("ClosedBy")
+}
+
+model Product {
+  id                          String         @id @default(cuid())
+  name                        String
+  description                 String?
+  type                        ProductType
+  price                       Float
+  usaChocolate                Boolean        @default(false)
+  usaAcompanhamentos          Boolean        @default(false)
+  quantidadeAcompanhamentos   Int?
+  isActive                    Boolean        @default(true)
+  createdAt                   DateTime       @default(now())
+
+  variations                  Variation[]
+  productToppings             ProductTopping[]
+  orderItems                  OrderItem[]
+}
+
+model Variation {
+  id        String   @id @default(cuid())
+  name      String
+  price     Float
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+}
+
+model Topping {
+  id         String   @id @default(cuid())
+  name       String
+  precoExtra Float    @default(0)
+  ativo      Boolean  @default(true)
+
+  productToppings ProductTopping[]
+}
+
+model ProductTopping {
+  id         String   @id @default(cuid())
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  String
+  topping    Topping  @relation(fields: [toppingId], references: [id])
+  toppingId  String
+}
+
+model Order {
+  id             String             @id @default(cuid())
+  customerName   String?
+  notes          String?
+  createdAt      DateTime           @default(now())
+  total          Float              @default(0)
+
+  items          OrderItem[]
+  payments       Payment[]
+  cashRegister   DailyCashRegister  @relation(fields: [cashRegisterId], references: [id])
+  cashRegisterId String
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+}
+
+model Payment {
+  id              String             @id @default(cuid())
+  value           Float
+  method          PaymentMethod
+  createdAt       DateTime           @default(now())
+
+  order           Order              @relation(fields: [orderId], references: [id])
+  orderId         String
+
+  cashRegister    DailyCashRegister  @relation("DailyCashRegisterToPayments", fields: [cashRegisterId], references: [id])
+  cashRegisterId  String
+}
+
+model DailyCashRegister {
+  id             String     @id @default(cuid())
+  openedAt       DateTime   @default(now())
+  closedAt       DateTime?
+  initialCash    Float
+  finalCash      Float?
+
+  openedBy       User       @relation("OpenedBy", fields: [openedById], references: [id])
+  openedById     String
+
+  closedBy       User?      @relation("ClosedBy", fields: [closedById], references: [id])
+  closedById     String?
+
+  orders         Order[]
+  payments       Payment[]  @relation("DailyCashRegisterToPayments")
+}
+
+enum ProductType {
+  FONDUE
+  BEBIDA
+  OUTRO
+}
+
+enum PaymentMethod {
+  DINHEIRO
+  PIX
+  CREDITO
+  DEBITO
+}
