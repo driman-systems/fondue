@@ -1,69 +1,103 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { ProdutoDTO } from '@/types/product'
 import { usePedidoStore } from '@/hooks/usePedidoStore'
-import { Product } from '@prisma/client'
-import { Button } from '@/components/ui/button'
-import { Loader } from 'lucide-react'
+import { useCaixaStore } from '@/hooks/useCaixaStore'
+import ModalFondue from './ModalFondue'
 
 export default function ListaProdutos() {
-  const [produtos, setProdutos] = useState<Product[]>([])
+  const [produtos, setProdutos] = useState<ProdutoDTO[]>([])
   const [loading, setLoading] = useState(true)
-  const { adicionarItem } = usePedidoStore()
+  const adicionarItemSimples = usePedidoStore(s => s.adicionarItemSimples)
+  const adicionarItemComOpcoes = usePedidoStore(s => s.adicionarItemComOpcoes)
+  const isOpen = useCaixaStore(s => s.isOpen)
+
+  const [fondueOpen, setFondueOpen] = useState(false)
+  const [produtoSel, setProdutoSel] = useState<ProdutoDTO | null>(null)
 
   useEffect(() => {
-    const fetchProdutos = async () => {
+    ;(async () => {
       try {
-        const res = await fetch('/api/produtos')
-        const data = await res.json()
+        const r = await fetch('/api/produtos', { cache: 'no-store' })
+        const data = await r.json()
         setProdutos(data)
-      } catch (err) {
-        console.error('Erro ao buscar produtos', err)
+      } catch (e) {
+        console.error(e)
       } finally {
         setLoading(false)
       }
-    }
-
-    fetchProdutos()
+    })()
   }, [])
 
-  const handleAddProduto = (produto: Product) => {
-    if (produto.type === 'FONDUE') {
-      // Abrir modal para seleção de variações
-      console.log('Abrir modal para fondue:', produto.name)
-      // Em breve: abrir modal com opções
+  function handleAdd(p: ProdutoDTO) {
+    if (!isOpen) {
+      alert('Abra o caixa para lançar produtos.')
       return
     }
-
-    adicionarItem({
-      productId: produto.id,
-      name: produto.name,
-      price: produto.price,
-      quantity: 1,
-    })
+    if (p.type === 'FONDUE') {
+      setProdutoSel(p)
+      setFondueOpen(true)
+      return
+    }
+    adicionarItemSimples(p)
   }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-40">
-        <Loader className="animate-spin" />
-      </div>
-    )
+  function confirmFondue({
+    variation,
+    toppings,
+  }: {
+    variation: { id: string; name: string; price: number } | null
+    toppings: { id: string; name: string; precoExtra: number }[]
+  }) {
+    if (!produtoSel) return
+    adicionarItemComOpcoes(produtoSel, { variation: variation ?? undefined, toppings })
   }
+
+  if (loading) return <div className="text-zinc-400 text-sm">Carregando produtos…</div>
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {produtos.map((produto) => (
-        <Button
-          key={produto.id}
-          className="p-4 flex flex-col items-center justify-center h-24"
-          variant="outline"
-          onClick={() => handleAddProduto(produto)}
-        >
-          <span className="text-sm font-semibold">{produto.name}</span>
-          <span className="text-xs text-gray-500">R$ {produto.price.toFixed(2)}</span>
-        </Button>
-      ))}
+    <div className="flex flex-col gap-3">
+      {!isOpen && (
+        <div className="rounded-lg border border-yellow-700/40 bg-yellow-900/20 text-yellow-300 text-sm px-3 py-2">
+          Caixa fechado — abra o caixa para lançar produtos.
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+        {produtos.map((p) => {
+          const disabled = !isOpen
+          return (
+            <button
+              key={p.id}
+              onClick={() => handleAdd(p)}
+              disabled={disabled}
+              title={disabled ? 'Abra o caixa para lançar produtos' : undefined}
+              className={`group rounded-2xl border border-zinc-800 p-4 text-left transition
+                ${disabled ? 'bg-zinc-900/30 opacity-50 cursor-not-allowed' : 'bg-zinc-900/40 hover:bg-zinc-900'}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-300">
+                  {p.type}
+                </span>
+                <span className="text-sm font-semibold opacity-80">R$ {p.price.toFixed(2)}</span>
+              </div>
+              <div className="text-base font-medium">{p.name}</div>
+              {p.description && <div className="text-xs text-zinc-400 mt-1 line-clamp-2">{p.description}</div>}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Modal FONDUE */}
+      {produtoSel && (
+        <ModalFondue
+          produto={produtoSel}
+          open={fondueOpen}
+          onClose={() => setFondueOpen(false)}
+          onConfirm={confirmFondue}
+        />
+      )}
     </div>
   )
 }

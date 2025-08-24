@@ -97,6 +97,7 @@ model Payment {
 
 model DailyCashRegister {
   id             String     @id @default(cuid())
+  number         Int        // <- sequencial do dia
   openedAt       DateTime   @default(now())
   closedAt       DateTime?
   initialCash    Float

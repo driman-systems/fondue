@@ -1,62 +1,30 @@
-import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
-export async function POST(request: Request) {
-  try {
-    const data = await request.json()
+export async function GET() {
+  const produtos = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { name: 'asc' },
+    include: {
+      variations: true,
+      productToppings: { include: { topping: true } },
+    },
+  })
 
-    const {
-      name,
-      description,
-      price,
-      type,
-      isActive,
-      usaChocolate,
-      usaAcompanhamentos,
-      quantidadeAcompanhamentos,
-      acompanhamentosSelecionados,
-      variations,
-    } = data
+  const data = produtos.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description ?? null,
+    type: p.type, // 'FONDUE' | 'BEBIDA' | 'OUTRO'
+    price: p.price,
+    usaChocolate: p.usaChocolate,
+    usaAcompanhamentos: p.usaAcompanhamentos,
+    quantidadeAcompanhamentos: p.quantidadeAcompanhamentos ?? null,
+    variations: p.variations.map(v => ({ id: v.id, name: v.name, price: v.price })),
+    toppings: p.productToppings
+      .filter(pt => pt.topping.ativo)
+      .map(pt => ({ id: pt.topping.id, name: pt.topping.name, precoExtra: pt.topping.precoExtra })),
+  }))
 
-    // Cria o produto principal
-    const produto = await prisma.product.create({
-      data: {
-        name,
-        description,
-        price,
-        type,
-        isActive,
-        usaChocolate,
-        usaAcompanhamentos,
-        quantidadeAcompanhamentos: usaAcompanhamentos ? quantidadeAcompanhamentos : 0,
-      },
-    })
-
-    // Cria as variações (se houver)
-    if (variations && variations.length > 0) {
-      await prisma.variation.createMany({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: variations.map((v: any) => ({
-          name: v.name,
-          price: v.price,
-          productId: produto.id,
-        })),
-      })
-    }
-
-    // Cria os acompanhamentos selecionados (se houver)
-    if (acompanhamentosSelecionados && acompanhamentosSelecionados.length > 0) {
-      await prisma.productTopping.createMany({
-        data: acompanhamentosSelecionados.map((toppingId: string) => ({
-          productId: produto.id,
-          toppingId,
-        })),
-      })
-    }
-
-    return NextResponse.json({ success: true, produto })
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ message: 'Erro ao criar produto' }, { status: 500 })
-  }
+  return NextResponse.json(data)
 }

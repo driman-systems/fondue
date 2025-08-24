@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter'
+import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 
@@ -19,41 +20,43 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
         });
-
         if (!user || !user.password) return null;
 
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
+        const isValid = await bcrypt.compare(credentials.password, user.password);
+        if (!isValid) return null;
 
-        return isValid ? user : null;
+        // ✅ devolva apenas o necessário, mapeando username -> name
+        return { id: user.id, name: user.username, role: user.role } as any;
       },
     }),
   ],
   session: {
     strategy: 'jwt',
-    maxAge: 12 * 60 * 60, // 12 horas
+    maxAge: 12 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id; // ✅ adiciona o id ao token
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // ✅ garanta id/role/name dentro do token
+        token.id = (user as any).id;
         token.role = (user as any).role;
+        token.name = (user as any).name; // <- vem do username mapeado acima
       }
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string; // ✅ injeta o id na sessão
-        session.user.role = token.role as string;
+      if (session.user) {
+        // ✅ injete id/role/name na sessão
+        (session.user as any).id = token.id as string;
+        (session.user as any).role = token.role as string;
+        if (token.name) session.user.name = String(token.name);
+        // fallback opcional:
+        if (!session.user.name && session.user.email)
+          session.user.name = session.user.email.split('@')[0];
       }
       return session;
     },
   },
-  pages: {
-    signIn: '/login',
-  },
+  pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
 };
