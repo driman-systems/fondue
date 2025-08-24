@@ -5,14 +5,23 @@ import { useRouter } from 'next/navigation'
 import type { Product, ProductType, Variation, Topping } from '@prisma/client'
 
 interface Props {
+  /** Produto quando for edição */
   produto?: Product & {
     variations: Variation[]
     productToppings: { topping: Topping }[]
   }
+  /** Lista total de toppings (acompanhamentos) ativos para seleção no form */
   acompanhamentosDisponiveis: Topping[]
+  /** Opcional: IDs de toppings pré-selecionados (útil no cadastro/clone). Em edição,
+   *  será ignorado em favor de `produto.productToppings`. */
+  toppingsSelecionados?: string[]
 }
 
-export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }: Props) {
+export default function FormProduto({
+  produto,
+  acompanhamentosDisponiveis = [],
+  toppingsSelecionados = [],
+}: Props) {
   const router = useRouter()
   const isEdit = Boolean(produto)
 
@@ -23,10 +32,19 @@ export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }
   const [isActive, setIsActive] = useState(produto?.isActive ?? true)
   const [usaChocolate, setUsaChocolate] = useState(produto?.usaChocolate ?? false)
   const [usaAcompanhamentos, setUsaAcompanhamentos] = useState(produto?.usaAcompanhamentos ?? false)
-  const [quantidadeAcompanhamentos, setQuantidadeAcompanhamentos] = useState(produto?.quantidadeAcompanhamentos || 0)
-  const [acompanhamentosSelecionados, setAcompanhamentosSelecionados] = useState<string[]>(
-    produto?.productToppings?.map((pt) => pt.topping.id) || []
+  const [quantidadeAcompanhamentos, setQuantidadeAcompanhamentos] = useState(
+    produto?.quantidadeAcompanhamentos || 0
   )
+
+  // Estado inicial dos acompanhamentos:
+  // - Se for edição, usa os IDs de productToppings do produto
+  // - Se for criação, usa a prop toppingsSelecionados (se passada)
+  const initialAcompIds: string[] = isEdit
+    ? (produto?.productToppings?.map((pt) => pt.topping.id) ?? [])
+    : (toppingsSelecionados ?? [])
+
+  const [acompanhamentosSelecionados, setAcompanhamentosSelecionados] =
+    useState<string[]>(initialAcompIds)
 
   const [variations, setVariations] = useState<Variation[]>(produto?.variations || [])
   const [loading, setLoading] = useState(false)
@@ -49,7 +67,7 @@ export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }
         usaChocolate,
         usaAcompanhamentos,
         quantidadeAcompanhamentos: usaAcompanhamentos ? quantidadeAcompanhamentos : 0,
-        acompanhamentosSelecionados,
+        acompanhamentosSelecionados, // <- IDs dos toppings selecionados
         variations,
       }),
     })
@@ -59,7 +77,7 @@ export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }
     if (res.ok) {
       router.push('/admin/produtos')
     } else {
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       setError(data.message || 'Erro ao salvar o produto.')
     }
   }
@@ -71,14 +89,18 @@ export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }
   }
 
   const handleAddVariation = () => {
-    setVariations([...variations, { id: '', name: '', price: 0, productId: '' }])
+    setVariations((prev) => [...prev, { id: '', name: '', price: 0, productId: '' }])
   }
 
   const handleRemoveVariation = (index: number) => {
-    setVariations(variations.filter((_, i) => i !== index))
+    setVariations((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleVariationChange = (index: number, field: 'name' | 'price', value: string | number) => {
+  const handleVariationChange = (
+    index: number,
+    field: 'name' | 'price',
+    value: string | number
+  ) => {
     const updated = [...variations]
     updated[index] = { ...updated[index], [field]: value }
     setVariations(updated)
@@ -157,7 +179,7 @@ export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }
             checked={usaAcompanhamentos}
             onChange={(e) => setUsaAcompanhamentos(e.target.checked)}
           />
-          <label className="font-medium">Permitir Acompanhamentos</label>
+        <label className="font-medium">Permitir Acompanhamentos</label>
         </div>
       )}
 
@@ -168,8 +190,11 @@ export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }
             <input
               type="number"
               value={quantidadeAcompanhamentos}
-              onChange={(e) => setQuantidadeAcompanhamentos(parseInt(e.target.value))}
+              onChange={(e) =>
+                setQuantidadeAcompanhamentos(Number.isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value))
+              }
               className="w-full border px-3 py-2 rounded"
+              min={0}
             />
           </div>
 
@@ -206,15 +231,25 @@ export default function FormProduto({ produto, acompanhamentosDisponiveis = [] }
               type="number"
               placeholder="Preço"
               value={v.price}
-              onChange={(e) => handleVariationChange(index, 'price', parseFloat(e.target.value))}
+              onChange={(e) =>
+                handleVariationChange(index, 'price', parseFloat(e.target.value))
+              }
               className="w-32 border px-3 py-2 rounded"
             />
-            <button type="button" onClick={() => handleRemoveVariation(index)} className="text-red-500">
+            <button
+              type="button"
+              onClick={() => handleRemoveVariation(index)}
+              className="text-red-500"
+            >
               Remover
             </button>
           </div>
         ))}
-        <button type="button" onClick={handleAddVariation} className="text-blue-600 mt-2 ml-2">
+        <button
+          type="button"
+          onClick={handleAddVariation}
+          className="text-blue-600 mt-2 ml-2"
+        >
           Adicionar acompanhamento
         </button>
       </div>
