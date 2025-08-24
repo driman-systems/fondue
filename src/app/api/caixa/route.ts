@@ -1,84 +1,54 @@
-import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-
-// Obter o caixa aberto atualmente
-export async function GET() {
-  try {
-    const caixaAberto = await prisma.dailyCashRegister.findFirst({
-      where: { closedAt: null },
-      include: {
-        openedBy: true,
-        closedBy: true,
-        orders: true
-      },
-      orderBy: { openedAt: 'desc' },
-    })
-
-    return NextResponse.json(caixaAberto)
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ message: 'Erro ao buscar caixa aberto' }, { status: 500 })
-  }
-}
+import { prisma } from '@/lib/prisma'
 
 // Abrir um novo caixa
 export async function POST(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  }
+
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Não autenticado' }, { status: 401 })
+    const body = await req.json().catch(() => ({}))
+    const initialCash = Number(body?.initialCash ?? 0)
+
+    // já existe caixa aberto?
+    const aberto = await prisma.dailyCashRegister.findFirst({
+      where: { closedAt: null },
+      select: { id: true },
+    })
+    if (aberto) {
+      return NextResponse.json(
+        { error: 'Já existe um caixa aberto.' },
+        { status: 400 }
+      )
     }
 
-    const { initialCash } = await req.json()
-
-    const caixaAberto = await prisma.dailyCashRegister.findFirst({ where: { closedAt: null } })
-    if (caixaAberto) {
-      return NextResponse.json({ message: 'Já existe um caixa aberto.' }, { status: 400 })
-    }
+    // pega o maior número já usado e incrementa
+    const last = await prisma.dailyCashRegister.findFirst({
+      orderBy: { number: 'desc' },
+      select: { number: true },
+    })
+    const nextNumber = (last?.number ?? 0) + 1
 
     const novoCaixa = await prisma.dailyCashRegister.create({
       data: {
-        initialCash,
-        openedById: session.user.id!,
+        number: nextNumber,                 // ✅ obrigatório no schema
+        initialCash,                        // ✅ garante número
+        openedById: session.user.id!,       // ✅ usuário que abriu
       },
+      select: { id: true, number: true, openedAt: true },
     })
 
-    return NextResponse.json(novoCaixa)
-  } catch (error) {
+    return NextResponse.json({ ok: true, caixa: novoCaixa })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
     console.error(error)
-    return NextResponse.json({ message: 'Erro ao abrir caixa' }, { status: 500 })
-  }
-}
-
-// Fechar caixa atual
-export async function PATCH(req: Request) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Não autenticado' }, { status: 401 })
-    }
-
-    const { finalCash } = await req.json()
-
-    const caixaAberto = await prisma.dailyCashRegister.findFirst({ where: { closedAt: null } })
-    if (!caixaAberto) {
-      return NextResponse.json({ message: 'Nenhum caixa aberto encontrado.' }, { status: 400 })
-    }
-
-    const caixaFechado = await prisma.dailyCashRegister.update({
-      where: { id: caixaAberto.id },
-      data: {
-        closedAt: new Date(),
-        finalCash,
-        closedById: session.user.id,
-      },
-    })
-
-    return NextResponse.json(caixaFechado)
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ message: 'Erro ao fechar caixa' }, { status: 500 })
+    return NextResponse.json(
+      { error: error?.message ?? 'Falha ao abrir caixa' },
+      { status: 500 }
+    )
   }
 }
