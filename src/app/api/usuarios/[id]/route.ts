@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { hash } from 'bcryptjs'
 
 // GET /api/usuarios/[id]
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
 
   const {id} = await params
 
@@ -13,7 +13,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 // PUT /api/usuarios/[id]
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
 
   const {id} = await params
 
@@ -47,7 +47,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // DELETE /api/usuarios/[id]
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
 
   const {id} = await params
 
