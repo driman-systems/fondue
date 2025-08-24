@@ -1,148 +1,132 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { useCaixaStore } from '@/hooks/useCaixaStore'
-import { usePedidoStore } from '@/hooks/usePedidoStore'
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import ModalContasPOS from '@/components/frente/ModalContasPOS'
 
-type CaixaStatus = {
-  isOpen: boolean
-  caixaNumber: number | null
+type CaixaInfo = { id: string; number: number | null } | null
+
+function parseBRLToNumber(s: string) {
+  if (!s) return 0
+  return Number(s.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0
 }
 
 export default function HeaderPOS() {
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState<CaixaStatus>({ isOpen: false, caixaNumber: null })
-  const [userName, setUserName] = useState<string>('')
+  const { data: session } = useSession()
+  const [caixa, setCaixa] = useState<CaixaInfo>(null)
+  const [loading, setLoading] = useState(false)
+  const [contasOpen, setContasOpen] = useState(false)
 
-  // store global do caixa
-  const setCaixaStatus = useCaixaStore((s) => s.setStatus)
-
-  const fetchStatus = useCallback(async () => {
+  async function loadStatus() {
     try {
-      const res = await fetch('/api/caixa/status', { cache: 'no-store' })
-      const data: CaixaStatus = await res.json()
-      setStatus(data)
-      setCaixaStatus({
-        isOpen: data.isOpen,
-        caixaNumber: data.caixaNumber ?? null,
-        loading: false,
-      })
-    } catch (e) {
-      console.error('Falha ao carregar status do caixa', e)
-      setCaixaStatus({ isOpen: false, caixaNumber: null, loading: false })
-    } finally {
-      setLoading(false)
+      const r = await fetch('/api/contas?caixaAtual=1', { cache: 'no-store' })
+      const j = await r.json()
+      setCaixa(j?.caixa ?? null)
+    } catch {
+      setCaixa(null)
     }
-  }, [setCaixaStatus])
+  }
 
-  async function openCaixa() {
+  useEffect(() => {
+    loadStatus()
+  }, [])
+
+  async function abrirCaixa() {
+    const v = prompt('Valor inicial do caixa (R$):', '0,00')
+    if (v == null) return
+    const initialCash = parseBRLToNumber(v)
+
     setLoading(true)
     try {
-      const valor = typeof window !== 'undefined'
-        ? window.prompt('Valor inicial do caixa (R$):', '0')
-        : '0'
-      const initialCash = Number((valor ?? '0').replace(',', '.')) || 0
-
-      const res = await fetch('/api/caixa/open', {
+      const r = await fetch('/api/caixa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initialCash }),
       })
-      if (!res.ok) throw new Error('Falha ao abrir caixa')
-      await fetchStatus()
-    } catch (e) {
-      console.error(e)
-      alert('Não foi possível abrir o caixa.')
+      if (!r.ok) {
+        const e = await r.json().catch(() => null)
+        alert(e?.error ?? 'Não foi possível abrir o caixa.')
+      } else {
+        await loadStatus()
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  async function closeCaixa() {
-    if (!confirm('Tem certeza que deseja fechar o caixa?')) return
+  async function fecharCaixa() {
+    if (!confirm('Fechar o caixa atual?')) return
     setLoading(true)
     try {
-      const res = await fetch('/api/caixa/close', { method: 'POST' })
-      if (!res.ok) throw new Error('Falha ao fechar caixa')
-      await fetchStatus()
-      usePedidoStore.getState().limpar()
-    } catch (e) {
-      console.error(e)
-      alert('Não foi possível fechar o caixa.')
+      const r = await fetch('/api/caixa/close', { method: 'POST' })
+      if (!r.ok) {
+        const e = await r.json().catch(() => null)
+        alert(e?.error ?? 'Não foi possível fechar o caixa.')
+      } else {
+        await loadStatus()
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  function verContas() {
-    const num = status.caixaNumber ?? ''
-    window.location.href = `/admin/contas?caixaAtual=${num}`
-  }
-
-  useEffect(() => {
-    fetchStatus()
-    ;(async () => {
-      try {
-        const r = await fetch('/api/me', { cache: 'no-store' })
-        if (r.ok) {
-          const u = await r.json()
-          setUserName(u?.name || '')
-        }
-      } catch {}
-    })()
-  }, [fetchStatus])
+  const isOpen = Boolean(caixa)
 
   return (
-    <header className="w-full border-b border-zinc-800 bg-black text-white">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <>
+      <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 text-white">
+        {/* Logo + título + status */}
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="Logo" width={36} height={36} className="rounded" />
+          <Image src="/logo.png" alt="logo" width={36} height={36} className="rounded" priority />
           <div className="text-lg font-semibold">Frente de Caixa</div>
-
-          {status.isOpen ? (
-            <span className="ml-3 rounded-full px-3 py-1 text-xs bg-green-600/20 border border-green-500/40">
-              Caixa #{status.caixaNumber ?? '—'} • ABERTO
-            </span>
-          ) : (
-            <span className="ml-3 rounded-full px-3 py-1 text-xs bg-yellow-600/20 border border-yellow-500/40">
-              Caixa FECHADO
-            </span>
-          )}
+          <span
+            className={`ml-2 rounded-full px-3 py-1 text-xs ${
+              isOpen ? 'bg-green-700/20 text-green-400' : 'bg-zinc-700/30 text-zinc-300'
+            }`}
+          >
+            {isOpen ? `Caixa #${caixa?.number ?? '—'} • ABERTO` : 'Caixa FECHADO'}
+          </span>
         </div>
 
+        {/* Ações */}
         <div className="flex items-center gap-2">
-          {userName && (
-            <span className="text-sm text-zinc-300 mr-2">Olá, {userName}</span>
-          )}
+          <div className="text-sm text-zinc-300 mr-3">
+            Olá, <span className="font-semibold">{session?.user?.name ?? 'Usuário'}</span>
+          </div>
 
-          {!status.isOpen ? (
+          {/* Ver contas (modal) */}
+          <button
+            onClick={() => setContasOpen(true)}
+            className="rounded-xl bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-sm border border-zinc-700"
+            disabled={!isOpen || loading}
+            title={!isOpen ? 'Abra um caixa para ver as contas' : 'Ver contas do caixa atual'}
+          >
+            Ver contas
+          </button>
+
+          {isOpen ? (
             <button
-              onClick={openCaixa}
+              onClick={fecharCaixa}
+              className="rounded-xl bg-yellow-400 text-black font-semibold hover:brightness-95 px-3 py-2 text-sm"
               disabled={loading}
-              className="rounded-xl px-4 py-2 bg-yellow-400 text-black font-semibold hover:brightness-95 disabled:opacity-50"
             >
-              {loading ? 'Abrindo...' : 'Abrir caixa'}
+              Fechar caixa
             </button>
           ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={verContas}
-                className="rounded-xl px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
-              >
-                Ver contas
-              </button>
-              <button
-                onClick={closeCaixa}
-                disabled={loading}
-                className="rounded-xl px-4 py-2 bg-red-500 text-white font-semibold hover:brightness-95 disabled:opacity-50"
-              >
-                {loading ? 'Fechando...' : 'Fechar caixa'}
-              </button>
-            </div>
+            <button
+              onClick={abrirCaixa}
+              className="rounded-xl bg-yellow-400 text-black font-semibold hover:brightness-95 px-3 py-2 text-sm"
+              disabled={loading}
+            >
+              Abrir caixa
+            </button>
           )}
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Modal de Contas do POS */}
+      <ModalContasPOS open={contasOpen} onClose={() => setContasOpen(false)} />
+    </>
   )
 }

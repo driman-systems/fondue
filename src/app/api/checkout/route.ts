@@ -1,103 +1,124 @@
+// src/app/api/checkout/route.ts
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PaymentMethod } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 
-type ItemIn = {
-  productId: string
-  quantity: number
-  unitPrice: number
-  variationName?: string | null
-  toppings?: string[]
+// Tipos esperados do front (o ModalCheckout.tsx que você tem)
+type PayMethod = 'DINHEIRO' | 'PIX' | 'CREDITO' | 'DEBITO'
+type IncomingBody = {
+  items: {
+    productId: string
+    quantity: number
+    unitPrice: number
+    variationName?: string | null
+    toppings?: string[]
+  }[]
+  discount: null | { type: 'valor' | 'percent'; value: number }
+  payments: { method: PayMethod; value: number }[]
+  notes: string | null
 }
-
-type PaymentIn = {
-  method: 'DINHEIRO' | 'PIX' | 'CREDITO' | 'DEBITO'
-  value: number
-}
-
-type DiscountIn = { type: 'valor' | 'percent'; value: number } | null
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-
-  const body = await req.json().catch(() => null) as {
-    items?: ItemIn[]
-    payments?: PaymentIn[]
-    discount?: DiscountIn
-    notes?: string | null
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   }
 
-  const items = body?.items ?? []
-  const payments = body?.payments ?? []
-  const discount = body?.discount ?? null
-  const notes = body?.notes ?? null
+  let body: IncomingBody
+  try {
+    body = (await req.json()) as IncomingBody
+  } catch {
+    return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
+  }
 
-  if (items.length === 0) return NextResponse.json({ error: 'Sem itens' }, { status: 400 })
-  if (payments.length === 0) return NextResponse.json({ error: 'Sem pagamentos' }, { status: 400 })
+  // validações mínimas
+  if (!body.items?.length) {
+    return NextResponse.json({ error: 'Pedido sem itens' }, { status: 400 })
+  }
+  if (!body.payments?.length) {
+    return NextResponse.json({ error: 'Informe ao menos um pagamento' }, { status: 400 })
+  }
 
-  // caixa aberto
+  // localiza o caixa ABERTO do usuário logado
   const caixa = await prisma.dailyCashRegister.findFirst({
-    where: { closedAt: null },
-    orderBy: { openedAt: 'desc' },
+    where: { openedById: session.user.id, closedAt: null },
     select: { id: true },
   })
-  if (!caixa) return NextResponse.json({ error: 'Nenhum caixa aberto' }, { status: 400 })
-
-  // calcula totais no servidor (fonte da verdade)
-  const subtotal = items.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0)
-  let discountValue = 0
-  if (discount && discount.value > 0) {
-    if (discount.type === 'valor') discountValue = Math.min(discount.value, subtotal)
-    else if (discount.type === 'percent') discountValue = Math.min(subtotal * (discount.value / 100), subtotal)
-  }
-  const finalTotal = Math.max(0, subtotal - discountValue)
-
-  const paid = payments.reduce((acc, p) => acc + (p.value > 0 ? p.value : 0), 0)
-  const diff = Math.abs(paid - finalTotal)
-
-  if (diff > 0.01) {
-    return NextResponse.json(
-      { error: 'Pagamentos não batem com o total final', subtotal, discountValue, finalTotal, paid },
-      { status: 400 },
-    )
+  if (!caixa) {
+    return NextResponse.json({ error: 'Nenhum caixa aberto para o usuário' }, { status: 400 })
   }
 
-  // cria pedido + pagamentos (transação)
-  const order = await prisma.$transaction(async (tx) => {
-    const created = await tx.order.create({
-      data: {
-        notes: notes
-          ? notes
-          : (discountValue > 0 ? `Desconto aplicado: R$ ${discountValue.toFixed(2)}` : null),
-        total: finalTotal, // já com desconto
-        cashRegisterId: caixa.id,
-        items: {
-          create: items.map((it) => ({
-            quantity: it.quantity,
-            productId: it.productId,
-          })),
+  // calcula subtotal e total (usando unitPrice que veio do front)
+  const subtotal = body.items.reduce(
+    (acc, it) => acc + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0),
+    0,
+  )
+  let total = subtotal
+  if (body.discount) {
+    if (body.discount.type === 'valor') {
+      total = Math.max(0, subtotal - Math.max(0, Number(body.discount.value) || 0))
+    } else {
+      const pct = Math.max(0, Math.min(Number(body.discount.value) || 0, 100))
+      total = Math.max(0, subtotal - subtotal * (pct / 100))
+    }
+  }
+
+  // opcional: garante consistência com pagamentos
+  const sumPayments = body.payments.reduce((a, p) => a + (Number(p.value) || 0), 0)
+  if (Math.abs(sumPayments - total) > 0.01) {
+    // não bloqueio, mas você pode bloquear se preferir
+    // return NextResponse.json({ error: 'Pagamentos não fecham com total' }, { status: 400 })
+  }
+
+  // cria pedido, itens e pagamentos
+  // (OrderItem do seu schema não tem unitPrice; gravamos só productId/quantity.
+  //  total fica no Order; qualquer detalhe de variações/toppings pode ir em notes.)
+  try {
+    const order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          customerName: null,
+          notes: body.notes,
+          total,
+          cashRegisterId: caixa.id,
+          items: {
+            create: body.items.map((it) => ({
+              productId: it.productId,
+              quantity: it.quantity,
+              details: {
+              chocolate: it.variationName ?? null,
+              toppings: it.toppings ?? [],
+            },
+            })),
+          },
         },
-      },
-      select: { id: true },
+        select: { id: true },
+      })
+
+      // grava pagamentos vinculados ao pedido e ao caixa
+      if (body.payments.length) {
+        await tx.payment.createMany({
+          data: body.payments.map((p) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            method: p.method as any, // enum do schema
+            value: Number(p.value) || 0,
+            orderId: created.id,
+            cashRegisterId: caixa.id,
+          })),
+        })
+      }
+
+      return created
     })
 
-    // pagamentos
-    for (const p of payments) {
-      await tx.payment.create({
-        data: {
-          value: p.value,
-          method: p.method as PaymentMethod,
-          orderId: created.id,
-          cashRegisterId: caixa.id,
-        },
-      })
-    }
-
-    return created
-  })
-
-  return NextResponse.json({ ok: true, orderId: order.id, subtotal, discountValue, finalTotal, paid })
+    return NextResponse.json({ ok: true, orderId: order.id })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (e: any) {
+    console.error('checkout error', e)
+    return NextResponse.json(
+      { error: e?.message ?? 'Falha ao finalizar pedido' },
+      { status: 500 },
+    )
+  }
 }

@@ -80,6 +80,7 @@ model OrderItem {
   productId String
   order     Order    @relation(fields: [orderId], references: [id])
   orderId   String
+  details   Json?
 }
 
 model Payment {

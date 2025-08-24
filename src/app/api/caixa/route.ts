@@ -3,7 +3,26 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// Abrir um novo caixa
+// Status do caixa do usuário logado
+export async function GET() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json({ isOpen: false, caixaId: null, caixaNumber: null })
+  }
+
+  const c = await prisma.dailyCashRegister.findFirst({
+    where: { openedById: session.user.id, closedAt: null },
+    select: { id: true, number: true },
+  })
+
+  return NextResponse.json({
+    isOpen: !!c,
+    caixaId: c?.id ?? null,
+    caixaNumber: c?.number ?? null,
+  })
+}
+
+// Abrir um novo caixa (por usuário)
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
@@ -14,20 +33,21 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const initialCash = Number(body?.initialCash ?? 0)
 
-    // já existe caixa aberto?
+    // já existe caixa aberto para este usuário?
     const aberto = await prisma.dailyCashRegister.findFirst({
-      where: { closedAt: null },
+      where: { openedById: session.user.id, closedAt: null },
       select: { id: true },
     })
     if (aberto) {
       return NextResponse.json(
-        { error: 'Já existe um caixa aberto.' },
+        { error: 'Você já possui um caixa aberto.' },
         { status: 400 }
       )
     }
 
-    // pega o maior número já usado e incrementa
+    // gera numeração do caixa por usuário (último + 1)
     const last = await prisma.dailyCashRegister.findFirst({
+      where: { openedById: session.user.id },
       orderBy: { number: 'desc' },
       select: { number: true },
     })
@@ -35,9 +55,9 @@ export async function POST(req: Request) {
 
     const novoCaixa = await prisma.dailyCashRegister.create({
       data: {
-        number: nextNumber,                 // ✅ obrigatório no schema
-        initialCash,                        // ✅ garante número
-        openedById: session.user.id!,       // ✅ usuário que abriu
+        number: nextNumber,
+        initialCash,
+        openedById: session.user.id!,
       },
       select: { id: true, number: true, openedAt: true },
     })

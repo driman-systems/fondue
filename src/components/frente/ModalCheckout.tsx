@@ -112,7 +112,7 @@ export default function ModalCheckout({
             }
           : null,
       payments: payments.map((p) => ({ method: p.method, value: p.value })),
-      notes: notes.trim() ? notes.trim() : null, // 👈 envia observação
+      notes: notes.trim() ? notes.trim() : null,
     }
 
     try {
@@ -121,13 +121,27 @@ export default function ModalCheckout({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+
+      // lê o corpo uma única vez
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; orderId?: string; error?: string }
+
       if (!res.ok) {
-        const e = await res.json().catch(() => null)
-        throw new Error(e?.error ?? 'Falha no checkout')
+        throw new Error(data?.error ?? 'Falha no checkout')
       }
+
+      // limpa estados locais
       limpar()
-      alert('Pedido finalizado com sucesso!')
-      onClose({ printed: false })
+      setPayments([])
+      setDiscountStr('0')
+      setNotes('')
+
+      // abre a comanda para impressão (80mm)
+      if (data?.orderId) {
+        window.open(`/comanda/${data.orderId}?auto=1`, '_blank', 'width=420,height=600')
+        onClose({ printed: true })
+      } else {
+        onClose({ printed: false })
+      }
     } catch (e: any) {
       console.error(e)
       alert(e?.message || 'Não foi possível finalizar.')
