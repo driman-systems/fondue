@@ -6,8 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "seed": "tsx prisma/seed.ts"
+    "postinstall": "prisma generate",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",

@@ -35,6 +35,7 @@ export default function ModalCheckout({
   const itens = usePedidoStore((s) => s.itens)
   const limpar = usePedidoStore((s) => s.limpar)
 
+  // totais
   const subtotal = useMemo(
     () => itens.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0),
     [itens]
@@ -52,19 +53,17 @@ export default function ModalCheckout({
 
   const finalTotal = Math.max(0, subtotal - discountValue)
 
-  // pagamentos já lançados
+  // pagamentos
   const [payments, setPayments] = useState<Payment[]>([])
   const paid = useMemo(() => payments.reduce((a, p) => a + p.value, 0), [payments])
   const remaining = Math.max(0, finalTotal - paid)
 
-  // input do valor a lançar (fica SEMPRE com o restante e selecionado)
+  // valor a lançar
   const [launchStr, setLaunchStr] = useState<string>('0,00')
   const launchRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    // sempre que total/remaining mudar, atualiza input com o restante
     const v = remaining.toFixed(2).replace('.', ',')
     setLaunchStr(v)
-    // seleciona o texto quando o modal está aberto
     if (open && launchRef.current) {
       setTimeout(() => {
         launchRef.current?.focus()
@@ -78,19 +77,14 @@ export default function ModalCheckout({
     let value = parseBRL(launchStr)
     if (value <= 0) value = remaining
     value = Math.min(value, remaining)
-
     setPayments((prev) => [...prev, { id: uid(), method, value }])
-    // launchStr será atualizado pelo useEffect (com o novo remaining)
   }
-
   function removePayment(id: string) {
     setPayments((prev) => prev.filter((p) => p.id !== id))
   }
 
-  const payloadPayments = payments.map((p) => ({
-    method: p.method,
-    value: p.value,
-  }))
+  // observação do pedido
+  const [notes, setNotes] = useState<string>('')
 
   async function finalize() {
     if (itens.length === 0) return
@@ -98,6 +92,7 @@ export default function ModalCheckout({
       alert('Ainda falta pagar o restante.')
       return
     }
+
     const payload = {
       items: itens.map((it) => ({
         productId: it.productId,
@@ -116,8 +111,8 @@ export default function ModalCheckout({
                   : Math.max(0, Math.min(parseBRL(discountStr), 100)),
             }
           : null,
-      payments: payloadPayments,
-      notes: null,
+      payments: payments.map((p) => ({ method: p.method, value: p.value })),
+      notes: notes.trim() ? notes.trim() : null, // 👈 envia observação
     }
 
     try {
@@ -152,39 +147,41 @@ export default function ModalCheckout({
 
         {/* Totais / Desconto / Valor a lançar */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          {/* Subtotal */}
           <div className="rounded-xl border border-zinc-800 p-3">
             <div className="text-xs text-zinc-400">Subtotal</div>
             <div className="text-xl font-semibold">{fmt(subtotal)}</div>
           </div>
 
+          {/* Desconto (tamanhos alinhados + preview à direita) */}
           <div className="rounded-xl border border-zinc-800 p-3">
             <div className="text-xs text-zinc-400 mb-1">Desconto</div>
-
             <div className="grid grid-cols-2 gap-2 items-start">
-                <select
+              <select
                 value={discountType}
                 onChange={(e) => setDiscountType(e.target.value as any)}
                 className="h-10 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
                 title="Tipo do desconto"
-                >
+              >
                 <option value="valor">R$</option>
                 <option value="percent">% </option>
-                </select>
+              </select>
 
-                <div className="min-w-0">
+              <div className="min-w-0">
                 <input
-                    value={discountStr}
-                    onChange={(e) => setDiscountStr(e.target.value)}
-                    placeholder={discountType === 'valor' ? '0,00' : '0'}
-                    className="h-10 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
+                  value={discountStr}
+                  onChange={(e) => setDiscountStr(e.target.value)}
+                  placeholder={discountType === 'valor' ? '0,00' : '0'}
+                  className="h-10 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
                 />
                 <div className="mt-1 text-[10px] leading-none text-right text-zinc-400/40">
-                    {discountValue > 0 ? `(-) ${fmt(discountValue)}` : '(-) R$ 0,00'}
+                  {discountValue > 0 ? `(-) ${fmt(discountValue)}` : '(-) R$ 0,00'}
                 </div>
-                </div>
+              </div>
             </div>
-            </div>
+          </div>
 
+          {/* Total (valor a lançar) */}
           <div className="rounded-xl border border-zinc-800 p-3">
             <div className="text-xs text-zinc-400 mb-1">Total (valor a lançar)</div>
             <input
@@ -192,7 +189,7 @@ export default function ModalCheckout({
               value={launchStr}
               onChange={(e) => setLaunchStr(e.target.value)}
               onFocus={(e) => e.currentTarget.select()}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-lg font-semibold"
+              className="h-10 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-lg font-semibold"
               title="Valor que será lançado ao clicar numa forma de pagamento"
             />
           </div>
@@ -231,7 +228,7 @@ export default function ModalCheckout({
           </button>
         </div>
 
-        {/* Lista de pagamentos registrados */}
+        {/* Lista de pagamentos */}
         <div className="space-y-2 mb-4">
           {payments.length === 0 ? (
             <div className="text-sm text-zinc-500">Nenhum pagamento lançado ainda.</div>
@@ -272,15 +269,20 @@ export default function ModalCheckout({
           </div>
         </div>
 
-        {/* Observação (mantido para próxima etapa também) */}
-        {/* <div className="mb-4">
-          <label className="text-sm text-zinc-300 mb-1 block">Observação do pedido</label>
+        {/* Observação */}
+        <div className="mb-4">
           <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
             rows={3}
+            maxLength={500}
             className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm"
-            placeholder="Ex.: Sem gelo na bebida, entregar na mesa 4…"
+            placeholder="Observação do pedido..."
           />
-        </div> */}
+          <div className="mt-1 text-[10px] text-right text-zinc-500/50">
+            {notes.length}/500
+          </div>
+        </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-zinc-800 pt-3">
           <button
