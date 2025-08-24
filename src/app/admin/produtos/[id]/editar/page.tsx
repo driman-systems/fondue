@@ -3,12 +3,6 @@ import { notFound } from 'next/navigation'
 import FormProduto from '@/components/FormProduto'
 import type { ProductType, Variation } from '@prisma/client'
 
-interface Props {
-  params: {
-    id: string
-  }
-}
-
 type ProdutoComToppings = {
   id: string
   name: string
@@ -31,9 +25,12 @@ type ProdutoComToppings = {
   }[]
 }
 
-export default async function EditarProdutoPage({ params }: Props) {
+export default async function EditarProdutoPage({ params }: { params: Promise<{ id: string }> }) {
+
+  const {id} = await params
+
   const produto = await prisma.product.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       variations: true,
       productToppings: {
