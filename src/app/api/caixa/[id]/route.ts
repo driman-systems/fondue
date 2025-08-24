@@ -6,9 +6,12 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+
+  const {id} = await params
+
   try {
     const caixa = await prisma.dailyCashRegister.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         openedBy: true,
         closedBy: true,

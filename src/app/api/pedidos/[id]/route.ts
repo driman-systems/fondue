@@ -2,9 +2,12 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
+
+  const {id} = await params
+
   try {
     const pedido = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         items: {
           include: {

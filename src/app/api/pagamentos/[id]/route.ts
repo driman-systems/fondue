@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
+
+  const {id} = await params
+
   try {
     const pagamento = await prisma.payment.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         order: true,
         cashRegister: true,
