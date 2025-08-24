@@ -1,15 +1,19 @@
 'use client'
+
+import { useState } from 'react'
 import { usePedidoStore } from '@/hooks/usePedidoStore'
 import { useCaixaStore } from '@/hooks/useCaixaStore'
+import ModalCheckout from './ModalCheckout'
 
-export default function PedidoResumo({ onFinalizar }: { onFinalizar?: () => void }) {
-  const itens = usePedidoStore((s) => s.itens)
-  const total = usePedidoStore((s) => s.total)
-  const inc = usePedidoStore((s) => s.incrementar)
-  const dec = usePedidoStore((s) => s.decrementar)
-  const rm  = usePedidoStore((s) => s.remover)
-  const isOpen = useCaixaStore((s) => s.isOpen)
+export default function PedidoResumo() {
+  const itens = usePedidoStore(s => s.itens)
+  const total = usePedidoStore(s => s.total)
+  const inc = usePedidoStore(s => s.incrementar)
+  const dec = usePedidoStore(s => s.decrementar)
+  const rm  = usePedidoStore(s => s.remover)
+  const isOpen = useCaixaStore(s => s.isOpen)
 
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const disabledFinalizar = itens.length === 0 || !isOpen
 
   return (
@@ -28,11 +32,8 @@ export default function PedidoResumo({ onFinalizar }: { onFinalizar?: () => void
               <div className="font-medium truncate">{it.name}</div>
               {it.variationName && <div className="text-xs text-zinc-400">{it.variationName}</div>}
               {it.toppings && it.toppings.length > 0 && (
-                <div className="text-xs text-zinc-400 truncate">
-                    {it.toppings.map(t => t.name).join(', ')}
-                </div>
-               )}
-
+                <div className="text-xs text-zinc-400 truncate">{it.toppings.map(t => t.name).join(', ')}</div>
+              )}
               <div className="text-xs text-zinc-500">R$ {it.unitPrice.toFixed(2)} un.</div>
             </div>
 
@@ -53,13 +54,14 @@ export default function PedidoResumo({ onFinalizar }: { onFinalizar?: () => void
       </div>
 
       <button
-        onClick={onFinalizar}
+        onClick={() => setCheckoutOpen(true)}
         disabled={disabledFinalizar}
-        title={disabledFinalizar ? (!isOpen ? 'Abra o caixa para finalizar' : 'Adicione itens ao pedido') : undefined}
         className="rounded-2xl px-4 py-3 font-semibold bg-yellow-400 text-black hover:brightness-95 disabled:opacity-50"
       >
         Finalizar
       </button>
+
+      <ModalCheckout open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
     </div>
   )
 }

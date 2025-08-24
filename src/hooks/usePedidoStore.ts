@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { ProdutoDTO } from '@/types/product'
 
 export type PedidoTopping = {
@@ -53,86 +54,96 @@ function signature(productId: string, variationId?: string, toppings?: PedidoTop
   return `${productId}|${variationId ?? ''}|${tops}`
 }
 
-export const usePedidoStore = create<State & Actions>((set, get) => ({
-  itens: [],
-  total: 0,
+export const usePedidoStore = create<State & Actions>()(
+  persist(
+    (set, get) => ({
+      itens: [],
+      total: 0,
 
-  adicionarItemSimples: (p) => {
-    const sig = signature(p.id)
-    const itens = [...get().itens]
-    const idx = itens.findIndex(it => it.signature === sig)
-    if (idx >= 0) {
-      itens[idx].quantity += 1
-      itens[idx].subtotal = itens[idx].quantity * itens[idx].unitPrice
-    } else {
-      const unitPrice = p.price
-      itens.push({
-        key: makeId(),
-        signature: sig,
-        productId: p.id,
-        name: p.name,
-        basePrice: p.price,
-        quantity: 1,
-        unitPrice,
-        subtotal: unitPrice,
-      })
+      adicionarItemSimples: (p) => {
+        const sig = signature(p.id)
+        const itens = [...get().itens]
+        const idx = itens.findIndex(it => it.signature === sig)
+        if (idx >= 0) {
+          itens[idx].quantity += 1
+          itens[idx].subtotal = itens[idx].quantity * itens[idx].unitPrice
+        } else {
+          const unitPrice = p.price
+          itens.push({
+            key: makeId(),
+            signature: sig,
+            productId: p.id,
+            name: p.name,
+            basePrice: p.price,
+            quantity: 1,
+            unitPrice,
+            subtotal: unitPrice,
+          })
+        }
+        set({ itens, total: calcTotal(itens) })
+      },
+
+      adicionarItemComOpcoes: (p, { variation, toppings }) => {
+        const tops = (toppings ?? []).map(t => ({
+          id: t.id,
+          name: t.name,
+          precoExtra: t.precoExtra ?? 0,
+        }))
+        const vPrice = variation?.price ?? 0
+        const extras = tops.reduce((a, t) => a + (t.precoExtra ?? 0), 0)
+        const unitPrice = p.price + vPrice + extras
+        const sig = signature(p.id, variation?.id, tops)
+
+        const itens = [...get().itens]
+        const idx = itens.findIndex(it => it.signature === sig)
+        if (idx >= 0) {
+          itens[idx].quantity += 1
+          itens[idx].subtotal = itens[idx].quantity * itens[idx].unitPrice
+        } else {
+          itens.push({
+            key: makeId(),
+            signature: sig,
+            productId: p.id,
+            name: p.name,
+            basePrice: p.price,
+            variationId: variation?.id,
+            variationName: variation?.name,
+            variationPrice: variation?.price,
+            toppings: tops,
+            quantity: 1,
+            unitPrice,
+            subtotal: unitPrice,
+          })
+        }
+        set({ itens, total: calcTotal(itens) })
+      },
+
+      incrementar: (key) => {
+        const itens = get().itens.map(it =>
+          it.key === key ? { ...it, quantity: it.quantity + 1, subtotal: (it.quantity + 1) * it.unitPrice } : it
+        )
+        set({ itens, total: calcTotal(itens) })
+      },
+
+      decrementar: (key) => {
+        const itens = get().itens
+          .map(it => (it.key === key ? { ...it, quantity: it.quantity - 1, subtotal: (it.quantity - 1) * it.unitPrice } : it))
+          .filter(it => it.quantity > 0)
+        set({ itens, total: calcTotal(itens) })
+      },
+
+      remover: (key) => {
+        const itens = get().itens.filter(it => it.key !== key)
+        set({ itens, total: calcTotal(itens) })
+      },
+
+      limpar: () => set({ itens: [], total: 0 }),
+    }),
+    {
+      name: 'pos-pedido-v1', // chave no localStorage
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ itens: state.itens, total: state.total }), // persiste só o necessário
+      version: 1,
     }
-    set({ itens, total: calcTotal(itens) })
-  },
-
-  adicionarItemComOpcoes: (p, { variation, toppings }) => {
-    const tops = (toppings ?? []).map(t => ({
-      id: t.id,
-      name: t.name,
-      precoExtra: t.precoExtra ?? 0,
-    }))
-    const vPrice = variation?.price ?? 0
-    const extras = tops.reduce((a, t) => a + (t.precoExtra ?? 0), 0)
-    const unitPrice = p.price + vPrice + extras
-    const sig = signature(p.id, variation?.id, tops)
-
-    const itens = [...get().itens]
-    const idx = itens.findIndex(it => it.signature === sig)
-    if (idx >= 0) {
-      itens[idx].quantity += 1
-      itens[idx].subtotal = itens[idx].quantity * itens[idx].unitPrice
-    } else {
-      itens.push({
-        key: makeId(),
-        signature: sig,
-        productId: p.id,
-        name: p.name,
-        basePrice: p.price,
-        variationId: variation?.id,
-        variationName: variation?.name,
-        variationPrice: variation?.price,
-        toppings: tops,
-        quantity: 1,
-        unitPrice,
-        subtotal: unitPrice,
-      })
-    }
-    set({ itens, total: calcTotal(itens) })
-  },
-
-  incrementar: (key) => {
-    const itens = get().itens.map(it =>
-      it.key === key ? { ...it, quantity: it.quantity + 1, subtotal: (it.quantity + 1) * it.unitPrice } : it
-    )
-    set({ itens, total: calcTotal(itens) })
-  },
-
-  decrementar: (key) => {
-    const itens = get().itens
-      .map(it => (it.key === key ? { ...it, quantity: it.quantity - 1, subtotal: (it.quantity - 1) * it.unitPrice } : it))
-      .filter(it => it.quantity > 0)
-    set({ itens, total: calcTotal(itens) })
-  },
-
-  remover: (key) => {
-    const itens = get().itens.filter(it => it.key !== key)
-    set({ itens, total: calcTotal(itens) })
-  },
-
-  limpar: () => set({ itens: [], total: 0 }),
-}))
+  )
+)

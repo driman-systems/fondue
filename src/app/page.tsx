@@ -16,7 +16,7 @@ export default function HomePOS() {
           </section>
           <aside className="col-span-12 lg:col-span-4">
             <div className="rounded-2xl border border-zinc-800 p-3 sticky top-4">
-              <PedidoResumo onFinalizar={() => alert('Próximo passo: Pagamentos e Obs do pedido')} />
+              <PedidoResumo />
             </div>
           </aside>
         </div>

@@ -38,7 +38,7 @@ export default function ModalFondue({ produto, open, onClose, onConfirm }: Props
   )
 
   const totalPreview = useMemo(
-    () => produto.price + 0 + extras, // chocolate sem custo extra
+    () => produto.price + extras, // chocolate sem custo
     [produto.price, extras]
   )
 
@@ -58,11 +58,7 @@ export default function ModalFondue({ produto, open, onClose, onConfirm }: Props
     }
     const variation =
       produto.type === 'FONDUE' && chocolate
-        ? {
-            id: chocolate,
-            name: chocolate === 'BRANCO' ? 'Chocolate Branco' : 'Chocolate Preto',
-            price: 0,
-          }
+        ? { id: chocolate, name: chocolate === 'BRANCO' ? 'Chocolate Branco' : 'Chocolate Preto', price: 0 }
         : null
 
     const toppings: PedidoTopping[] = selectedToppings.map(t => ({
@@ -88,7 +84,7 @@ export default function ModalFondue({ produto, open, onClose, onConfirm }: Props
           Monte seu fondue • Preço base: R$ {produto.price.toFixed(2)}
         </div>
 
-        {/* 1) Chocolate */}
+        {/* 1) Chocolate (sem preço) */}
         <div className="mb-4">
           <div className="font-medium mb-2">Chocolate</div>
           <div className="grid grid-cols-2 gap-2">
@@ -108,14 +104,14 @@ export default function ModalFondue({ produto, open, onClose, onConfirm }: Props
                 />
                 <div className="flex items-center justify-between">
                   <span>{ch === 'BRANCO' ? 'Chocolate Branco' : 'Chocolate Preto'}</span>
-                  <span className="text-sm opacity-80">+ R$ 0,00</span>
+                  {/* sem preço aqui */}
                 </div>
               </label>
             ))}
           </div>
         </div>
 
-        {/* 2) Acompanhamentos */}
+        {/* 2) Acompanhamentos (mostra preço só se > 0, sem 'incl.') */}
         <div className="mb-4">
           <div className="font-medium mb-2">
             Acompanhamentos{' '}
@@ -126,33 +122,37 @@ export default function ModalFondue({ produto, open, onClose, onConfirm }: Props
             )}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {produto.toppings.map(t => {
-              const checked = selected.has(t.id)
-              const disabled = !checked && !canSelectMore
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => toggleTop(t.id)}
-                  disabled={disabled}
-                  className={`text-left border rounded-xl p-3 transition ${
-                    checked ? 'border-yellow-400 bg-yellow-400/10' : 'border-zinc-800 hover:bg-zinc-900'
-                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title={disabled ? 'Limite atingido' : checked ? 'Remover' : 'Adicionar'}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="truncate">{t.name}</span>
-                    {t.precoExtra ? (
-                      <span className="text-xs opacity-80">+ R$ {t.precoExtra.toFixed(2)}</span>
-                    ) : (
-                      <span className="text-xs opacity-60">incl.</span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+          {produto.toppings.length === 0 ? (
+            <div className="text-xs text-zinc-400 border border-zinc-800 rounded-xl p-3">
+              Nenhum acompanhamento vinculado a este produto.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {produto.toppings.map(t => {
+                const checked = selected.has(t.id)
+                const disabled = !checked && !canSelectMore
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => toggleTop(t.id)}
+                    disabled={disabled}
+                    className={`text-left border rounded-xl p-3 transition ${
+                      checked ? 'border-yellow-400 bg-yellow-400/10' : 'border-zinc-800 hover:bg-zinc-900'
+                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={disabled ? 'Limite atingido' : checked ? 'Remover' : 'Adicionar'}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{t.name}</span>
+                      {t.precoExtra > 0 && (
+                        <span className="text-xs opacity-80">+ R$ {t.precoExtra.toFixed(2)}</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-zinc-800 pt-3 mt-3">

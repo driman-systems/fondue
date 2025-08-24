@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { useCaixaStore } from '@/hooks/useCaixaStore'
+import { usePedidoStore } from '@/hooks/usePedidoStore'
 
 type CaixaStatus = {
   isOpen: boolean
@@ -65,6 +66,7 @@ export default function HeaderPOS() {
       const res = await fetch('/api/caixa/close', { method: 'POST' })
       if (!res.ok) throw new Error('Falha ao fechar caixa')
       await fetchStatus()
+      usePedidoStore.getState().limpar()
     } catch (e) {
       console.error(e)
       alert('Não foi possível fechar o caixa.')
