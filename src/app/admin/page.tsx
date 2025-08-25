@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
+import Link from 'next/link'
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions)
@@ -17,6 +18,7 @@ export default async function AdminDashboard() {
         <a href="/admin/produtos" className="block p-4 bg-white shadow rounded hover:bg-yellow-100 transition">Produtos</a>
         <a href="/admin/caixa" className="block p-4 bg-white shadow rounded hover:bg-yellow-100 transition">Caixa</a>
         <a href="/admin/relatorios" className="block p-4 bg-white shadow rounded hover:bg-yellow-100 transition">Relatórios</a>
+        <Link className="block p-4 bg-white shadow rounded hover:bg-yellow-100 transition" href="/">Frente de caixa</Link>
       </div>
     </main>
   )
