@@ -1,42 +1,26 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import ModalFondue from '@/components/frente/ModalFondue'
 import { usePedidoStore } from '@/hooks/usePedidoStore'
+import type { ProdutoDTO } from '@/types/product'
 
 type Props = { isOpen: boolean }
 
-type ProductDTO = {
-  id: string
-  name: string
-  description?: string | null
-  price: number
-  type: 'FONDUE' | 'BEBIDA' | 'OUTRO'
-  usaChocolate: boolean
-  usaAcompanhamentos: boolean
-  quantidadeAcompanhamentos?: number | null
-  variations?: { id: string; name: string; price: number }[]
-  productToppings?: { topping: { id: string; name: string; precoExtra: number } }[]
-}
-
 export default function ListaProdutos({ isOpen }: Props) {
-  const [all, setAll] = useState<ProductDTO[]>([])
+  const [all, setAll] = useState<ProdutoDTO[]>([])
   const [q, setQ] = useState('')
-  const [fondue, setFondue] = useState<ProductDTO | null>(null)
+  const [fondue, setFondue] = useState<ProdutoDTO | null>(null)
 
-  // ação para adicionar itens no carrinho (usa o que existir no store)
-  const addToCart =
-    usePedidoStore(
-      (s: any) => s.addItem || s.adicionar || s.addProduct || s.addItemSimple
-    ) ?? (() => {})
+  const adicionarItemSimples = usePedidoStore((s) => s.adicionarItemSimples)
+  const adicionarItemComOpcoes = usePedidoStore((s) => s.adicionarItemComOpcoes)
 
   useEffect(() => {
     ;(async () => {
       const r = await fetch('/api/produtos', { cache: 'no-store' })
-      const data: ProductDTO[] = await r.json()
+      const data: ProdutoDTO[] = await r.json()
 
-      // FONDUE primeiro
+      // Deixa FONDUE no topo, depois ordena por nome
       data.sort((a, b) => {
         if (a.type === 'FONDUE' && b.type !== 'FONDUE') return -1
         if (a.type !== 'FONDUE' && b.type === 'FONDUE') return 1
@@ -58,19 +42,14 @@ export default function ListaProdutos({ isOpen }: Props) {
     )
   }, [all, q])
 
-  function handleClick(p: ProductDTO) {
+  function handleClick(p: ProdutoDTO) {
     if (!isOpen) return
+    // Para fondue com opções, abre o modal; demais produtos entram direto
     if (p.type === 'FONDUE' && (p.usaChocolate || p.usaAcompanhamentos)) {
       setFondue(p)
       return
     }
-    // produto simples
-    addToCart({
-      productId: p.id,
-      name: p.name,
-      unitPrice: p.price,
-      quantity: 1,
-    })
+    adicionarItemSimples(p)
   }
 
   return (
@@ -113,10 +92,7 @@ export default function ListaProdutos({ isOpen }: Props) {
                 {p.type}
               </span>
               <span className="text-sm font-semibold">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(p.price)}
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.price)}
               </span>
             </div>
             <div className="text-base font-medium">{p.name}</div>
@@ -132,18 +108,12 @@ export default function ListaProdutos({ isOpen }: Props) {
         <ModalFondue
           open={!!fondue}
           onClose={() => setFondue(null)}
-          produto={fondue as any}
-          onConfirm={(payload: any) => {
-            // normaliza campos vindos do modal
-            addToCart({
-              productId: payload.productId ?? fondue.id,
-              name: fondue.name,
-              unitPrice: payload.unitPrice ?? fondue.price ?? 0,
-              quantity: payload.quantity ?? 1,
-              variationName:
-                payload.variationName ?? payload.chocolate ?? null, // “Chocolate Branco/Preto”
-              toppings: payload.toppings ?? [],
-            })
+          produto={fondue}
+          onConfirm={({ variation, toppings }) => {
+            // Aqui repassamos exatamente o que o modal retorna:
+            //  - variation: { id: 'BRANCO' | 'PRETO', name: 'Chocolate ...', price: 0 } | null
+            //  - toppings: [{ id, name, precoExtra }]
+            adicionarItemComOpcoes(fondue, { variation, toppings })
             setFondue(null)
           }}
         />

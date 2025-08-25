@@ -84,9 +84,9 @@ export default async function ComandaPage({
           {order.items.map((it) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const d = (it as any).details as { chocolate?: string | null; toppings?: string[] } | null
-            const chocolate = d?.chocolate ? `Chocolate: ${d.chocolate}` : ''
+            const chocolate = d?.chocolate ? `${d.chocolate}` : ''
             const toppings =
-              d?.toppings && d.toppings.length ? `Acomp.: ${d.toppings.join(', ')}` : ''
+              d?.toppings && d.toppings.length ? `Acomp: ${d.toppings.join(', ')}` : ''
 
             return (
               <div key={it.id} className="item">

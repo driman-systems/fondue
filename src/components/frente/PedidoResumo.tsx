@@ -11,7 +11,6 @@ function fmt(n: number) {
 }
 
 export default function PedidoResumo({ isOpen }: Props) {
-  // 🔒 pegue tudo do store com os nomes reais
   const itens = usePedidoStore((s) => s.itens)
   const total = usePedidoStore((s) => s.total)
   const limpar = usePedidoStore((s) => s.limpar)
@@ -48,10 +47,12 @@ export default function PedidoResumo({ isOpen }: Props) {
                   <div className="mr-2">
                     <div className="font-medium">{it.name}</div>
                     <div className="text-xs text-zinc-400">
-                      {it.variationName ? `Chocolate: ${it.variationName}. ` : ''}
-                      {it.toppings?.length
-                        ? `Acomp.: ${it.toppings.map((t) => t.name).join(', ')}`
+                      <div>{it.variationName ? `${it.variationName} ` : ''}</div>
+                      <div>
+                        {it.toppings?.length
+                        ? `Acomp: ${it.toppings.map((t) => t.name).join(', ')}`
                         : ''}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
