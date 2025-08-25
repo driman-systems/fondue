@@ -1,25 +1,21 @@
+// src/app/api/caixa/status/route.ts
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth' // ajuste o path se for diferente
-
-export const revalidate = 0
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ isOpen: false, caixaId: null, caixaNumber: null })
-  }
+  if (!session?.user?.id) return NextResponse.json({ isOpen: false })
 
   const caixa = await prisma.dailyCashRegister.findFirst({
-    where: { closedAt: null },
-    orderBy: { openedAt: 'desc' },
+    where: { openedById: session.user.id, closedAt: null },
     select: { id: true, number: true },
+    orderBy: { openedAt: 'desc' },
   })
 
   return NextResponse.json({
     isOpen: !!caixa,
-    caixaId: caixa?.id ?? null,
     caixaNumber: caixa?.number ?? null,
   })
 }

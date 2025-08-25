@@ -1,36 +1,25 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useState } from 'react'
 import ModalContasPOS from '@/components/frente/ModalContasPOS'
 
-type CaixaInfo = { id: string; number: number | null } | null
+type Props = {
+  isOpen: boolean
+  caixaNumber: number | null
+  onStatusChanged?: () => void // pai pode recarregar /api/caixa/status
+}
 
 function parseBRLToNumber(s: string) {
   if (!s) return 0
   return Number(s.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0
 }
 
-export default function HeaderPOS() {
+export default function HeaderPOS({ isOpen, caixaNumber, onStatusChanged }: Props) {
   const { data: session } = useSession()
-  const [caixa, setCaixa] = useState<CaixaInfo>(null)
   const [loading, setLoading] = useState(false)
   const [contasOpen, setContasOpen] = useState(false)
-
-  async function loadStatus() {
-    try {
-      const r = await fetch('/api/contas?caixaAtual=1', { cache: 'no-store' })
-      const j = await r.json()
-      setCaixa(j?.caixa ?? null)
-    } catch {
-      setCaixa(null)
-    }
-  }
-
-  useEffect(() => {
-    loadStatus()
-  }, [])
 
   async function abrirCaixa() {
     const v = prompt('Valor inicial do caixa (R$):', '0,00')
@@ -48,7 +37,7 @@ export default function HeaderPOS() {
         const e = await r.json().catch(() => null)
         alert(e?.error ?? 'Não foi possível abrir o caixa.')
       } else {
-        await loadStatus()
+        onStatusChanged?.()
       }
     } finally {
       setLoading(false)
@@ -64,19 +53,16 @@ export default function HeaderPOS() {
         const e = await r.json().catch(() => null)
         alert(e?.error ?? 'Não foi possível fechar o caixa.')
       } else {
-        await loadStatus()
+        onStatusChanged?.()
       }
     } finally {
       setLoading(false)
     }
   }
 
-  const isOpen = Boolean(caixa)
-
   return (
     <>
       <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 text-white">
-        {/* Logo + título + status */}
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="logo" width={36} height={36} className="rounded" priority />
           <div className="text-lg font-semibold">Frente de Caixa</div>
@@ -85,17 +71,15 @@ export default function HeaderPOS() {
               isOpen ? 'bg-green-700/20 text-green-400' : 'bg-zinc-700/30 text-zinc-300'
             }`}
           >
-            {isOpen ? `Caixa #${caixa?.number ?? '—'} • ABERTO` : 'Caixa FECHADO'}
+            {isOpen ? `Caixa #${caixaNumber ?? '—'} • ABERTO` : 'Caixa FECHADO'}
           </span>
         </div>
 
-        {/* Ações */}
         <div className="flex items-center gap-2">
           <div className="text-sm text-zinc-300 mr-3">
             Olá, <span className="font-semibold">{session?.user?.name ?? 'Usuário'}</span>
           </div>
 
-          {/* Ver contas (modal) */}
           <button
             onClick={() => setContasOpen(true)}
             className="rounded-xl bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-sm border border-zinc-700"
@@ -125,7 +109,6 @@ export default function HeaderPOS() {
         </div>
       </header>
 
-      {/* Modal de Contas do POS */}
       <ModalContasPOS open={contasOpen} onClose={() => setContasOpen(false)} />
     </>
   )

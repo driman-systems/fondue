@@ -1,67 +1,123 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { usePedidoStore } from '@/hooks/usePedidoStore'
-import { useCaixaStore } from '@/hooks/useCaixaStore'
-import ModalCheckout from './ModalCheckout'
+import ModalCheckout from '@/components/frente/ModalCheckout'
 
-export default function PedidoResumo() {
-  const itens = usePedidoStore(s => s.itens)
-  const total = usePedidoStore(s => s.total)
-  const inc = usePedidoStore(s => s.incrementar)
-  const dec = usePedidoStore(s => s.decrementar)
-  const rm  = usePedidoStore(s => s.remover)
-  const isOpen = useCaixaStore(s => s.isOpen)
+type Props = { isOpen: boolean }
+
+function fmt(n: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0)
+}
+
+export default function PedidoResumo({ isOpen }: Props) {
+  const itens = usePedidoStore((s: any) => s.itens ?? [])
+  const limpar = usePedidoStore((s: any) => s.limpar ?? (() => {}))
+  const remove = usePedidoStore((s: any) => s.remover ?? s.remove ?? (() => {}))
+  const inc = usePedidoStore((s: any) => s.incrementar ?? s.inc ?? (() => {}))
+  const dec = usePedidoStore((s: any) => s.decrementar ?? s.dec ?? (() => {}))
+
+  const total = useMemo(
+    () => itens.reduce((a: number, it: any) => a + (it.unitPrice || 0) * (it.quantity || 0), 0),
+    [itens],
+  )
 
   const [checkoutOpen, setCheckoutOpen] = useState(false)
-  const disabledFinalizar = itens.length === 0 || !isOpen
+
+  function abrirCheckout() {
+    if (!isOpen) return
+    if (!itens.length) return
+    setCheckoutOpen(true)
+  }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div>
       {!isOpen && (
-        <div className="rounded-lg border border-yellow-700/40 bg-yellow-900/20 text-yellow-300 text-sm px-3 py-2">
+        <div className="mb-3 rounded-xl border border-amber-700 bg-amber-900/30 px-3 py-2 text-amber-300">
           Caixa fechado — não é possível finalizar pedidos.
         </div>
       )}
 
-      <div className="max-h-[65vh] overflow-auto pr-1">
-        {itens.length === 0 && <div className="text-zinc-400 text-sm">Nenhum item na conta…</div>}
-        {itens.map((it) => (
-          <div key={it.key} className="flex items-center justify-between border border-zinc-800 rounded-xl p-3 mb-2">
-            <div className="min-w-0">
-              <div className="font-medium truncate">{it.name}</div>
-              {it.variationName && <div className="text-xs text-zinc-400">{it.variationName}</div>}
-              {it.toppings && it.toppings.length > 0 && (
-                <div className="text-xs text-zinc-400 truncate">{it.toppings.map(t => t.name).join(', ')}</div>
-              )}
-              <div className="text-xs text-zinc-500">R$ {it.unitPrice.toFixed(2)} un.</div>
-            </div>
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900">
+        <div className="p-4 text-sm text-zinc-400 border-b border-zinc-800">
+          {itens.length ? 'Itens selecionados:' : 'Nenhum item na conta...'}
+        </div>
 
-            <div className="flex items-center gap-2">
-              <button onClick={() => dec(it.key)} className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700">-</button>
-              <span className="w-7 text-center">{it.quantity}</span>
-              <button onClick={() => inc(it.key)} className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700">+</button>
-              <div className="w-24 text-right font-semibold">R$ {it.subtotal.toFixed(2)}</div>
-              <button onClick={() => rm(it.key)} className="px-2 py-1 rounded-lg bg-red-500/80 hover:bg-red-500 text-white">x</button>
-            </div>
+        {itens.length > 0 && (
+          <div className="max-h-[52vh] overflow-auto divide-y divide-zinc-800">
+            {itens.map((it: any) => (
+              <div key={it.id ?? `${it.productId}-${Math.random()}`} className="p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <div className="mr-2">
+                    <div className="font-medium">{it.name ?? it.productName ?? 'Produto'}</div>
+                    <div className="text-xs text-zinc-400">
+                      {it.variationName ? `Chocolate: ${it.variationName}. ` : ''}
+                      {it.toppings?.length ? `Acomp.: ${it.toppings.join(', ')}` : ''}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold">{fmt((it.unitPrice || 0) * (it.quantity || 0))}</div>
+                    <div className="text-[11px] text-zinc-400">{fmt(it.unitPrice || 0)} un.</div>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs">
+                    <button
+                      onClick={() => dec(it)}
+                      className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-[24px] text-center">{it.quantity || 0}</span>
+                    <button
+                      onClick={() => inc(it)}
+                      className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => remove(it)}
+                    className="text-xs px-2 py-1 rounded bg-red-500/80 hover:bg-red-500 text-white"
+                  >
+                    remover
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+
+        <div className="p-4 border-t border-zinc-800">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm text-zinc-400">Total</div>
+            <div className="text-lg font-semibold">{fmt(total)}</div>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => limpar()}
+              disabled={!itens.length}
+              className="px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50"
+            >
+              Limpar
+            </button>
+            <button
+              onClick={abrirCheckout}
+              disabled={!isOpen || !itens.length}
+              className="px-4 py-2 rounded-xl bg-yellow-400 text-black font-semibold hover:brightness-95 disabled:opacity-50"
+              title={!isOpen ? 'Abra um caixa para finalizar' : undefined}
+            >
+              Finalizar
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-auto border-t border-zinc-800 pt-3 flex items-center justify-between">
-        <div className="text-zinc-400 text-sm">Total</div>
-        <div className="text-2xl font-bold">R$ {total.toFixed(2)}</div>
-      </div>
-
-      <button
-        onClick={() => setCheckoutOpen(true)}
-        disabled={disabledFinalizar}
-        className="rounded-2xl px-4 py-3 font-semibold bg-yellow-400 text-black hover:brightness-95 disabled:opacity-50"
-      >
-        Finalizar
-      </button>
-
-      <ModalCheckout open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      {checkoutOpen && (
+        <ModalCheckout open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      )}
     </div>
   )
 }
