@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   const produtos = await prisma.product.findMany({
     where: { isActive: true },
-    orderBy: { name: 'asc' }, // ordena por nome no banco só pra já vir estável
+    orderBy: { name: 'asc' },
     include: {
       variations: true,
       productToppings: { include: { topping: true } },
@@ -12,7 +12,6 @@ export async function GET() {
   })
 
   const data = produtos.map((p) => {
-    // Toppings por relação ProductTopping
     const toppingsByRelation = p.productToppings
       .filter((pt) => pt.topping.ativo)
       .map((pt) => ({
@@ -21,7 +20,6 @@ export async function GET() {
         precoExtra: pt.topping.precoExtra,
       }))
 
-    // Fallback: se for FONDUE e não houver relação, usar VARIATIONS como acompanhamentos
     const toppingsByVariation =
       p.type === 'FONDUE'
         ? p.variations.map((v) => ({
@@ -38,7 +36,7 @@ export async function GET() {
       id: p.id,
       name: p.name,
       description: p.description ?? null,
-      type: p.type, // 'FONDUE' | 'BEBIDA' | 'OUTRO'
+      type: p.type,
       price: p.price,
       usaChocolate: p.usaChocolate,
       usaAcompanhamentos: p.usaAcompanhamentos,
@@ -52,7 +50,6 @@ export async function GET() {
     }
   })
 
-  // 🔽 AQUI: ordena FONDUE primeiro e, dentro dos grupos, por nome
   const sorted = data.sort((a, b) => {
     const rank = (t: string) => (t === 'FONDUE' ? 0 : 1)
     return rank(a.type) - rank(b.type) || a.name.localeCompare(b.name)
@@ -60,3 +57,62 @@ export async function GET() {
 
   return NextResponse.json(sorted)
 }
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json()
+    const {
+      name,
+      description,
+      price,
+      type,
+      isActive = true,
+      usaChocolate = false,
+      usaAcompanhamentos = false,
+      quantidadeAcompanhamentos = 0,
+      acompanhamentosSelecionados = [], // array de IDs de toppings
+      variations = [],                  // [{ name, price }]
+    } = body
+
+    const created = await prisma.product.create({
+      data: {
+        name,
+        description,
+        price: Number(price ?? 0),
+        type,
+        isActive,
+        usaChocolate,
+        usaAcompanhamentos,
+        quantidadeAcompanhamentos: usaAcompanhamentos
+          ? Number(quantidadeAcompanhamentos ?? 0)
+          : 0,
+      },
+    })
+
+    if (Array.isArray(variations) && variations.length > 0) {
+      await prisma.variation.createMany({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: (variations as any[]).map((v) => ({
+          name: v.name,
+          price: Number(v.price ?? 0),
+          productId: created.id,
+        })),
+      })
+    }
+
+    if (Array.isArray(acompanhamentosSelecionados) && acompanhamentosSelecionados.length > 0) {
+      await prisma.productTopping.createMany({
+        data: acompanhamentosSelecionados.map((toppingId: string) => ({
+          productId: created.id,
+          toppingId,
+        })),
+      })
+    }
+
+    return NextResponse.json({ ok: true, id: created.id })
+  } catch (e) {
+    console.error(e)
+    return NextResponse.json({ error: 'Erro ao criar produto' }, { status: 500 })
+  }
+}
+
