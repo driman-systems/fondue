@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { FiEdit, FiTrash, FiToggleLeft, FiToggleRight } from 'react-icons/fi'
 import { revalidatePath } from 'next/cache'
@@ -64,9 +64,9 @@ export default async function ProdutosPage() {
           <tr>
             <th className="p-4">Nome</th>
             <th className="p-4">Tipo</th>
-            <th className="p-4">Preço</th>
+            <th className="p-4">PreÃ§o</th>
             <th className="p-4">Ativo</th>
-            <th className="p-4">Ações</th>
+            <th className="p-4">AÃ§Ãµes</th>
           </tr>
         </thead>
         <tbody>
@@ -103,3 +103,4 @@ export default async function ProdutosPage() {
     </div>
   )
 }
+

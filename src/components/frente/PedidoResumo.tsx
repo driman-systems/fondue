@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import ModalCheckout from '@/components/frente/ModalCheckout'
@@ -30,7 +30,7 @@ export default function PedidoResumo({ isOpen }: Props) {
     <div>
       {!isOpen && (
         <div className="mb-3 rounded-xl border border-amber-700 bg-amber-900/30 px-3 py-2 text-amber-300">
-          Caixa fechado — não é possível finalizar pedidos.
+          Caixa fechado â€” nÃ£o Ã© possÃ­vel finalizar pedidos.
         </div>
       )}
 
@@ -67,7 +67,7 @@ export default function PedidoResumo({ isOpen }: Props) {
                       onClick={() => decrementar(it.key)}
                       className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700"
                     >
-                      −
+                      âˆ’
                     </button>
                     <span className="min-w-[24px] text-center">{it.quantity}</span>
                     <button
@@ -120,3 +120,4 @@ export default function PedidoResumo({ isOpen }: Props) {
     </div>
   )
 }
+

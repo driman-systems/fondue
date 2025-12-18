@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Image from 'next/image'
 import { useSession } from 'next-auth/react'
@@ -35,7 +35,7 @@ export default function HeaderPOS({ isOpen, caixaNumber, onStatusChanged }: Prop
       })
       if (!r.ok) {
         const e = await r.json().catch(() => null)
-        alert(e?.error ?? 'Não foi possível abrir o caixa.')
+        alert(e?.error ?? 'NÃ£o foi possÃ­vel abrir o caixa.')
       } else {
         onStatusChanged?.()
       }
@@ -51,7 +51,7 @@ export default function HeaderPOS({ isOpen, caixaNumber, onStatusChanged }: Prop
       const r = await fetch('/api/caixa/close', { method: 'POST' })
       if (!r.ok) {
         const e = await r.json().catch(() => null)
-        alert(e?.error ?? 'Não foi possível fechar o caixa.')
+        alert(e?.error ?? 'NÃ£o foi possÃ­vel fechar o caixa.')
       } else {
         onStatusChanged?.()
       }
@@ -71,13 +71,13 @@ export default function HeaderPOS({ isOpen, caixaNumber, onStatusChanged }: Prop
               isOpen ? 'bg-green-700/20 text-green-400' : 'bg-zinc-700/30 text-zinc-300'
             }`}
           >
-            {isOpen ? `Caixa #${caixaNumber ?? '—'} • ABERTO` : 'Caixa FECHADO'}
+            {isOpen ? `Caixa #${caixaNumber ?? 'â€”'} â€¢ ABERTO` : 'Caixa FECHADO'}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <div className="text-sm text-zinc-300 mr-3">
-            Olá, <span className="font-semibold">{session?.user?.name ?? 'Usuário'}</span>
+            OlÃ¡, <span className="font-semibold">{session?.user?.name ?? 'UsuÃ¡rio'}</span>
           </div>
 
           <button
@@ -113,3 +113,6 @@ export default function HeaderPOS({ isOpen, caixaNumber, onStatusChanged }: Prop
     </>
   )
 }
+
+
+

@@ -1,4 +1,4 @@
-// src/app/comanda/[id]/page.tsx
+﻿// src/app/comanda/[id]/page.tsx
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
@@ -60,7 +60,7 @@ export default async function ComandaPage({
       <body>
         <div className="ticket">
           <div className="center">
-            {/* Logo via next/image (unoptimized para impressão) */}
+            {/* Logo via next/image (unoptimized para impressÃ£o) */}
             <Image
               src="/logo.png"
               alt="logo"
@@ -72,7 +72,7 @@ export default async function ComandaPage({
             />
             <h3>COMANDA</h3>
             <div className="muted">
-              Pedido #{order.id.slice(0, 8)} • Caixa #{order.cashRegister?.number ?? '—'}
+              Pedido #{order.id.slice(0, 8)} â€¢ Caixa #{order.cashRegister?.number ?? 'â€”'}
             </div>
             <div className="muted">
               {createdAt.toLocaleDateString('pt-BR')} {createdAt.toLocaleTimeString('pt-BR')}
@@ -139,3 +139,4 @@ export default async function ComandaPage({
     </html>
   )
 }
+

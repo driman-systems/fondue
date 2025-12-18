@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 
@@ -65,12 +65,12 @@ export default function ModalContasPOS({
       <div className="relative w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-xl">
         <div className="flex items-center justify-between mb-3">
           <div className="text-lg font-semibold">
-            {data?.caixa ? `Contas do Caixa #${data.caixa.number ?? '—'}` : 'Nenhum caixa aberto'}
+            {data?.caixa ? `Contas do Caixa #${data.caixa.number ?? 'â€”'}` : 'Nenhum caixa aberto'}
           </div>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar pedido/produto/cliente…"
+            placeholder="Buscar pedido/produto/clienteâ€¦"
             className="w-72 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm"
           />
         </div>
@@ -94,7 +94,7 @@ export default function ModalContasPOS({
             <div className="text-lg font-semibold">{fmt(byMethod.PIX || 0)}</div>
           </div>
           <div className="rounded-xl border border-zinc-800 p-3">
-            <div className="text-xs text-zinc-400">Cartões</div>
+            <div className="text-xs text-zinc-400">CartÃµes</div>
             <div className="text-lg font-semibold">
               {fmt((byMethod.CREDITO || 0) + (byMethod.DEBITO || 0))}
             </div>
@@ -118,7 +118,7 @@ export default function ModalContasPOS({
               {loading ? (
                 <tr>
                   <td className="p-4 text-zinc-400" colSpan={6}>
-                    Carregando…
+                    Carregandoâ€¦
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
@@ -180,3 +180,4 @@ export default function ModalContasPOS({
     </div>
   )
 }
+

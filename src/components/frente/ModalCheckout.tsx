@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -58,7 +58,7 @@ export default function ModalCheckout({
   const paid = useMemo(() => payments.reduce((a, p) => a + p.value, 0), [payments])
   const remaining = Math.max(0, finalTotal - paid)
 
-  // valor a lançar
+  // valor a lanÃ§ar
   const [launchStr, setLaunchStr] = useState<string>('0,00')
   const launchRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -83,7 +83,7 @@ export default function ModalCheckout({
     setPayments((prev) => prev.filter((p) => p.id !== id))
   }
 
-  // observação do pedido
+  // observaÃ§Ã£o do pedido
   const [notes, setNotes] = useState<string>('')
 
   async function finalize() {
@@ -122,7 +122,7 @@ export default function ModalCheckout({
         body: JSON.stringify(payload),
       })
 
-      // lê o corpo uma única vez
+      // lÃª o corpo uma Ãºnica vez
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; orderId?: string; error?: string }
 
       if (!res.ok) {
@@ -135,7 +135,7 @@ export default function ModalCheckout({
       setDiscountStr('0')
       setNotes('')
 
-      // abre a comanda para impressão (80mm)
+      // abre a comanda para impressÃ£o (80mm)
       if (data?.orderId) {
         window.open(`/comanda/${data.orderId}?auto=1`, '_blank', 'width=420,height=600')
         onClose({ printed: true })
@@ -144,7 +144,7 @@ export default function ModalCheckout({
       }
     } catch (e: any) {
       console.error(e)
-      alert(e?.message || 'Não foi possível finalizar.')
+      alert(e?.message || 'NÃ£o foi possÃ­vel finalizar.')
     }
   }
 
@@ -159,7 +159,7 @@ export default function ModalCheckout({
           Revise os valores, aplique desconto e informe os pagamentos.
         </div>
 
-        {/* Totais / Desconto / Valor a lançar */}
+        {/* Totais / Desconto / Valor a lanÃ§ar */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           {/* Subtotal */}
           <div className="rounded-xl border border-zinc-800 p-3">
@@ -167,7 +167,7 @@ export default function ModalCheckout({
             <div className="text-xl font-semibold">{fmt(subtotal)}</div>
           </div>
 
-          {/* Desconto (tamanhos alinhados + preview à direita) */}
+          {/* Desconto (tamanhos alinhados + preview Ã  direita) */}
           <div className="rounded-xl border border-zinc-800 p-3">
             <div className="text-xs text-zinc-400 mb-1">Desconto</div>
             <div className="grid grid-cols-2 gap-2 items-start">
@@ -195,21 +195,21 @@ export default function ModalCheckout({
             </div>
           </div>
 
-          {/* Total (valor a lançar) */}
+          {/* Total (valor a lanÃ§ar) */}
           <div className="rounded-xl border border-zinc-800 p-3">
-            <div className="text-xs text-zinc-400 mb-1">Total (valor a lançar)</div>
+            <div className="text-xs text-zinc-400 mb-1">Total (valor a lanÃ§ar)</div>
             <input
               ref={launchRef}
               value={launchStr}
               onChange={(e) => setLaunchStr(e.target.value)}
               onFocus={(e) => e.currentTarget.select()}
               className="h-10 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-lg font-semibold"
-              title="Valor que será lançado ao clicar numa forma de pagamento"
+              title="Valor que serÃ¡ lanÃ§ado ao clicar numa forma de pagamento"
             />
           </div>
         </div>
 
-        {/* Botões das formas de pagamento */}
+        {/* BotÃµes das formas de pagamento */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="font-medium mr-2">Formas de pagamento</span>
           <button
@@ -231,21 +231,21 @@ export default function ModalCheckout({
             onClick={() => addPayment('CREDITO')}
             className="rounded-lg px-3 py-1.5 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-sm"
           >
-            Crédito
+            CrÃ©dito
           </button>
           <button
             type="button"
             onClick={() => addPayment('DEBITO')}
             className="rounded-lg px-3 py-1.5 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-sm"
           >
-            Débito
+            DÃ©bito
           </button>
         </div>
 
         {/* Lista de pagamentos */}
         <div className="space-y-2 mb-4">
           {payments.length === 0 ? (
-            <div className="text-sm text-zinc-500">Nenhum pagamento lançado ainda.</div>
+            <div className="text-sm text-zinc-500">Nenhum pagamento lanÃ§ado ainda.</div>
           ) : (
             payments.map((p) => (
               <div
@@ -283,7 +283,7 @@ export default function ModalCheckout({
           </div>
         </div>
 
-        {/* Observação */}
+        {/* ObservaÃ§Ã£o */}
         <div className="mb-4">
           <textarea
             value={notes}
@@ -291,7 +291,7 @@ export default function ModalCheckout({
             rows={3}
             maxLength={500}
             className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm"
-            placeholder="Observação do pedido..."
+            placeholder="ObservaÃ§Ã£o do pedido..."
           />
           <div className="mt-1 text-[10px] text-right text-zinc-500/50">
             {notes.length}/500
@@ -318,3 +318,4 @@ export default function ModalCheckout({
     </div>
   )
 }
+

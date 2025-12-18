@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Projeto POS (Next.js + Prisma + NextAuth) para gestão de pedidos e caixa.
 
-## Getting Started
+## Stack
+- Next.js 15 (App Router) + React 19
+- Prisma (PostgreSQL)
+- NextAuth (Credentials + JWT)
+- Tailwind CSS v4
+- Zustand
 
-First, run the development server:
+## Pré‑requisitos
+- Node.js 20+
+- Banco PostgreSQL e a variável `DATABASE_URL` configurada no `.env`
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Configuração
+1. Instale as dependências:
+   - `npm install`
+2. Configure as variáveis de ambiente em `.env` (ex.: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`).
+3. Gere o cliente Prisma e aplique o schema (em dev, só `generate`; em prod o build já roda `migrate deploy`):
+   - `npx prisma generate`
+4. (Opcional) Popule um usuário admin padrão:
+   - `npm run seed`
+
+## Executar em desenvolvimento
 ```
+npm run dev
+```
+Acesse `http://localhost:3000`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts úteis
+- `npm run dev`: inicia o servidor de desenvolvimento
+- `npm run build`: aplica migrações (`prisma migrate deploy`) e compila o app
+- `npm start`: inicia o build em produção
+- `npm run seed`: cria/atualiza o usuário `admin` com senha padrão (ajuste em `prisma/seed.ts`)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Estrutura principal
+- `src/app` — páginas do POS e área admin (`/admin`)
+- `src/app/api` — rotas da API (produtos, pedidos, pagamentos, caixa)
+- `src/components` — componentes do POS e formulários
+- `prisma/schema.prisma` — schema do banco
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notas
+- O login usa usuário/senha (Credentials). O adapter Prisma do NextAuth não é utilizado; os usuários vivem no modelo `User` do Prisma.
+- O fechamento de caixa soma os pagamentos do caixa e atualiza `finalCash`.

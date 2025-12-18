@@ -1,18 +1,41 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
+type ItemInput = { productId: string; quantity: number }
+type PaymentInput = { method: 'DINHEIRO' | 'PIX' | 'CREDITO' | 'DEBITO'; value: number }
+
 export async function POST(req: Request) {
   try {
-    const { customerName, notes, cashRegisterId, items, payments } = await req.json()
+    const { customerName, notes, cashRegisterId, items, payments } = (await req.json()) as {
+      customerName?: string | null
+      notes?: string | null
+      cashRegisterId: string
+      items: ItemInput[]
+      payments: PaymentInput[]
+    }
+
+    if (!cashRegisterId || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ message: 'Dados inválidos.' }, { status: 400 })
+    }
+
+    // Calcula total simples com base nos produtos atuais
+    const productIds = [...new Set(items.map((i) => i.productId))]
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, price: true },
+    })
+    const priceMap = new Map(products.map((p) => [p.id, p.price]))
+    const total = items.reduce((acc, it) => acc + (priceMap.get(it.productId) ?? 0) * it.quantity, 0)
 
     const pedido = await prisma.order.create({
       data: {
-        customerName,
-        notes,
+        customerName: customerName ?? null,
+        notes: notes ?? null,
         cashRegisterId,
+        total,
         items: {
           createMany: {
-            data: items.map((item: { productId: string; quantity: number }) => ({
+            data: items.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
             })),
@@ -20,9 +43,10 @@ export async function POST(req: Request) {
         },
         payments: {
           createMany: {
-            data: payments.map((p: { method: string; amount: number }) => ({
+            data: (payments ?? []).map((p) => ({
               method: p.method,
-              amount: p.amount,
+              value: Number(p.value || 0),
+              cashRegisterId,
             })),
           },
         },

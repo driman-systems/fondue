@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+﻿import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import FormUsuario from '@/components/FormUsuario'
 
@@ -16,8 +16,9 @@ const {id} = await params
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Editar Usuário</h1>
+      <h1 className="text-2xl font-bold mb-6">Editar UsuÃ¡rio</h1>
       <FormUsuario usuario={usuario} />
     </div>
   )
 }
+

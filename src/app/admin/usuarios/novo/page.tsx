@@ -1,4 +1,4 @@
-import FormUsuario from '@/components/FormUsuario'
+﻿import FormUsuario from '@/components/FormUsuario'
 
 export default function NovoUsuarioPage() {
   return (
@@ -8,3 +8,5 @@ export default function NovoUsuarioPage() {
     </div>
   )
 }
+
+

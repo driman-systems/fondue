@@ -27,3 +27,4 @@ export default function UsuarioAcoes({ id }: UsuarioAcoesProps) {
     </div>
   )
 }
+

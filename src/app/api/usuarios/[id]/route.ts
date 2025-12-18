@@ -4,18 +4,16 @@ import { hash } from 'bcryptjs'
 
 // GET /api/usuarios/[id]
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
 
-  const {id} = await params
-
-  const user = await prisma.user.findUnique({ where: { id: id } })
+  const user = await prisma.user.findUnique({ where: { id } })
   if (!user) return NextResponse.json({ message: 'Usuário não encontrado.' }, { status: 404 })
   return NextResponse.json(user)
 }
 
 // PUT /api/usuarios/[id]
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-
-  const {id} = await params
+  const { id } = await params
 
   try {
     const { username, password, role } = await req.json()
@@ -35,7 +33,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     await prisma.user.update({
-      where: { id: id },
+      where: { id },
       data: dataToUpdate,
     })
 
@@ -48,14 +46,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 // DELETE /api/usuarios/[id]
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
-
-  const {id} = await params
+  const { id } = await params
 
   try {
-    await prisma.user.delete({ where: { id: id } })
+    await prisma.user.delete({ where: { id } })
     return NextResponse.json({ message: 'Usuário excluído com sucesso.' })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ message: 'Erro ao excluir usuário.' }, { status: 500 })
   }
 }
+
